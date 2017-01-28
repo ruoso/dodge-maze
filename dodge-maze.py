@@ -4,22 +4,25 @@ import thread
 import time
 import math
 
-screen_x_size = 830;
-screen_y_size = 830;
+screen_x_size = 820;
+screen_y_size = 820;
 
 wall_thickness = 0.1
-character_box_size = 0.04
+character_box_size = 0.15
 
 def clear_screen(screen):
     pygame.draw.rect(screen, (100,100,100),
                      pygame.Rect(0,0,screen_x_size,screen_y_size))
 
 def l2p( value ):
-    return 10 + (value * 100)
+    return value * 100
+
+def l2p_pos( value ):
+    return 10 + l2p(value)
 
 def draw_tile( color, screen, x, y ):
     pygame.draw.rect(screen, color,
-                     pygame.Rect(l2p(x), l2p(y),
+                     pygame.Rect(l2p_pos(x), l2p_pos(y),
                                  l2p(1), l2p(1)))
 
 def draw_floor( level, screen ):
@@ -44,19 +47,19 @@ def draw_wall_in_tile( screen, x, y, mask ):
     color = ( 255, 255, 255 )
     if (mask & 1):
         pygame.draw.rect(screen, color,
-                         pygame.Rect(l2p(x), l2p(y),
+                         pygame.Rect(l2p_pos(x), l2p_pos(y),
                                      l2p(1), l2p(wall_thickness)))
     if (mask & 2):
         pygame.draw.rect(screen, color,
-                         pygame.Rect(l2p(x+(1-wall_thickness)), l2p(y),
+                         pygame.Rect(l2p_pos(x+(1-wall_thickness)), l2p_pos(y),
                                      l2p(wall_thickness), l2p(1)))
     if (mask & 4):
         pygame.draw.rect(screen, color,
-                         pygame.Rect(l2p(x), l2p(y+(1-wall_thickness)),
+                         pygame.Rect(l2p_pos(x), l2p_pos(y+(1-wall_thickness)),
                                      l2p(1), l2p(wall_thickness)))
     if (mask & 8):
         pygame.draw.rect(screen, color,
-                         pygame.Rect(l2p(x), l2p(y),
+                         pygame.Rect(l2p_pos(x), l2p_pos(y),
                                      l2p(wall_thickness), l2p(1)))
 
 def draw_walls( level, screen ):
@@ -73,17 +76,18 @@ def draw_player( level, screen ):
     x = level["player"][0]
     y = level["player"][1]
     pygame.draw.rect(screen, color,
-                     pygame.Rect(l2p(x-(character_box_size / 2)),
-                                 l2p(y-(character_box_size / 2)),
+                     pygame.Rect(l2p_pos(x-(character_box_size / 2)),
+                                 l2p_pos(y-(character_box_size / 2)),
                                  l2p(character_box_size),
                                  l2p(character_box_size)))
 
 def draw_enemy( screen, x, y ):
     color = ( 127, 127, 0 )
     pygame.draw.rect(screen, color,
-                     pygame.Rect(l2p(x-0.02),
-                                 l2p(y-0.02),
-                                 l2p(0.04), l2p(0.04)))
+                     pygame.Rect(l2p_pos(x-character_box_size/2),
+                                 l2p_pos(y-character_box_size/2),
+                                 l2p(character_box_size),
+                                 l2p(character_box_size)))
 
 def draw_enemies( level, screen ):
     enemies = level["enemies"]
@@ -98,16 +102,7 @@ def draw_everything( level_data, screen ):
     draw_enemies( level_data, screen )
     pygame.display.flip()
 
-def player_move( level_data, pressed, elapsed ):
-    player = level_data["player"]
-    floor_type = level_data["floor"][int(player[1])][int(player[0])]
-
-    if floor_type == "A":
-        velocity = 2.5
-    elif floor_type == "B":
-        velocity = 1.5
-    elif floor_type == "0":
-        velocity = 0
+def character_move( level_data, character, pressed, elapsed, velocity ):
     
     distance = velocity * elapsed
     vertical = 0
@@ -126,39 +121,89 @@ def player_move( level_data, pressed, elapsed ):
     if (horizontal or vertical):
         angle = math.atan2(vertical, horizontal )
         
-        current_x = player[0]
+        current_x = character[0]
         distance_x = math.cos(angle)
-        current_y = player[1]
+        current_y = character[1]
         distance_y = math.sin(angle)
         new_x = current_x + distance_x * distance
         new_y = current_y + distance_y * distance
+        new_left_x = new_x - character_box_size/2
+        new_left_rel_x = new_left_x - int(new_left_x)
+        new_top_y = new_y - character_box_size/2
+        new_top_rel_y = new_top_y - int(new_top_y)
+        new_right_x = new_x + character_box_size/2
+        new_right_rel_x = new_right_x - int(new_right_x)
+        new_bottom_y = new_y + character_box_size/2
+        new_bottom_rel_y = new_bottom_y - int(new_bottom_y)
+        walls_in_tl_tile = level_data["walls"][int(new_top_y)][int(new_left_x)]
+        walls_in_tr_tile = level_data["walls"][int(new_top_y)][int(new_right_x)]
+        walls_in_bl_tile = level_data["walls"][int(new_bottom_y)][int(new_left_x)]
+        walls_in_br_tile = level_data["walls"][int(new_bottom_y)][int(new_right_x)]
 
-        # is ( new_x, new_y ) going to bump into a wall?
-        relative_x = new_x - int(current_x)
-        relative_y = new_y - int(current_y)
-        walls_in_this_tile = level_data["walls"][int(player[1])][int(player[0])]
-        walls_in_new_tile = level_data["walls"][int(new_y)][int(new_x)]
-        print "{0}\n".format((int(current_x), int(current_y)))
-        wall_collision_distance = (wall_thickness*2 + character_box_size/2)
-        if (relative_x <= wall_collision_distance):
-            if (walls_in_this_tile & 8):
+        print new_left_rel_x, new_top_rel_y, new_right_rel_x, new_bottom_rel_y
+        
+        if (new_left_rel_x <= wall_thickness):
+            if (walls_in_tl_tile & 8 or walls_in_bl_tile & 8):
                 new_x = current_x
-        if (relative_x >= 1 - wall_collision_distance):
-            if (walls_in_this_tile & 2):
+                new_y = current_y
+        if (new_left_rel_x >= 1 - wall_thickness):
+            if (walls_in_tl_tile & 2 or walls_in_bl_tile & 2):
                 new_x = current_x
-        if (relative_y <= wall_collision_distance):
-            if (walls_in_this_tile & 1):
                 new_y = current_y
-        if (relative_y >= 1 - wall_collision_distance):
-            if (walls_in_this_tile & 4):
+        if (new_right_rel_x >= 1 - wall_thickness):
+            if (walls_in_tr_tile & 2 or walls_in_br_tile & 2):
+                new_x = current_x
                 new_y = current_y
+        if (new_right_rel_x <= wall_thickness):
+            if (walls_in_tr_tile & 8 or walls_in_br_tile & 8):
+                new_x = current_x
+                new_y = current_y
+        if (new_bottom_rel_y >= 1 - wall_thickness):
+            if (walls_in_br_tile & 4 or walls_in_bl_tile & 4):
+                new_x = current_x
+                new_y = current_y
+        if (new_bottom_rel_y <= wall_thickness):
+            if (walls_in_br_tile & 1 or walls_in_bl_tile & 1):
+                new_x = current_x
+                new_y = current_y
+        if (new_top_rel_y <= wall_thickness):
+            if (walls_in_tl_tile & 1 or walls_in_tr_tile & 1):
+                new_x = current_x
+                new_y = current_y
+        if (new_top_rel_y >= 1 - wall_thickness):
+            if (walls_in_tl_tile & 4 or walls_in_tr_tile & 4):
+                new_x = current_x
+                new_y = current_y
+        
+        character[0] = new_x
+        character[1] = new_y
 
-        player[0] = new_x
-        player[1] = new_y
+def player_velocity( level_data ):
+    character = level_data["player"]
+    floor_type = level_data["floor"][int(character[1])][int(character[0])]
+    if floor_type == "A":
+        return 2.5
+    elif floor_type == "B":
+        return 1.5
+    else:
+        return 0
+
+def enemy_velocity( level_data, character ):
+    floor_type = level_data["floor"][int(character[1])][int(character[0])]
+    if floor_type == "B":
+        return 2.5
+    elif floor_type == "A":
+        return 1.5
+    else:
+        return 0
 
 def process_rules( level_data, elapsed ):
     pressed = pygame.key.get_pressed()
-    player_move(level_data, pressed, elapsed)
+    character_move(level_data,
+                   level_data["player"],
+                   pressed,
+                   elapsed,
+                   player_velocity(level_data))
 
 def main( screen ):
     with open("levels/level1.json") as level_file:
