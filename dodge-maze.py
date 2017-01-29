@@ -150,8 +150,6 @@ def character_move( level_data, character, pressed, elapsed, velocity ):
         walls_in_bl_tile = level_data["walls"][int(new_bottom_y)][int(new_left_x)]
         walls_in_br_tile = level_data["walls"][int(new_bottom_y)][int(new_right_x)]
 
-        print new_left_rel_x, new_top_rel_y, new_right_rel_x, new_bottom_rel_y
-        
         if ((new_left_rel_x <= wall_thickness) and
             (walls_in_tl_tile & 8 or walls_in_bl_tile & 8)):
             new_x = current_x
@@ -226,9 +224,111 @@ def enemy_velocity( level_data, character ):
     if floor_type == "B":
         return 2.5
     elif floor_type == "A":
-        return 0.3
+        return 1.8
     else:
         return 0
+
+def can_see_point_from_point(level, viewer_x, viewer_y, target_x, target_y):
+    # 1) what is the angle between the two points
+    rel_to_viewer_x = target_x - viewer_x
+    rel_to_viewer_y = target_y - viewer_y
+    angle = math.atan2( rel_to_viewer_y, rel_to_viewer_x  )
+
+    # 2) what is the current tile
+    tile_x = int(viewer_x)
+    tile_y = int(viewer_y)
+
+    # 3) which tile the target is
+    target_tile_x = int(target_x)
+    target_tile_y = int(target_y)
+
+    if (tile_x == target_tile_x and
+        tile_y == target_tile_y):
+        # we are on the same tile, it can definitely see it
+        return True
+    else:
+        # 4) our position inside that tile
+        rel_to_tile_x = viewer_x - tile_x
+        rel_to_tile_y = viewer_y - tile_y
+        
+        # 5) find the exit point in this tile
+        viewer_to_l_x = 0 - rel_to_tile_x
+        viewer_to_r_x = 1 - rel_to_tile_x
+        viewer_to_t_y = 0 - rel_to_tile_y
+        viewer_to_b_y = 1 - rel_to_tile_y
+
+        # Find the angle to the corners
+        tl_angle = math.atan2(viewer_to_t_y, viewer_to_l_x )
+        bl_angle = math.atan2(viewer_to_b_y, viewer_to_l_x )
+        tr_angle = math.atan2(viewer_to_t_y, viewer_to_r_x )
+        br_angle = math.atan2(viewer_to_b_y, viewer_to_r_x )
+       
+        this_wall_mask = level["walls"][tile_y][tile_x]
+               
+        if (angle <= tl_angle or angle >= bl_angle):
+            # looking left
+            if (this_wall_mask & 8):
+                return False
+            else:
+                next_wall_mask = level["walls"][tile_y][tile_x - 1]
+                if (next_wall_mask & 2):
+                    return False
+                else:
+                    adjusted_y = math.tan(angle) * viewer_to_l_x
+                    return can_see_point_from_point( level,
+                                                     tile_x - 0.001,
+                                                     viewer_y + adjusted_y,
+                                                     target_x, target_y )
+
+        elif (angle < bl_angle and angle >= br_angle):
+            # looking down
+            if (this_wall_mask & 4):
+                return False
+            else:
+                next_wall_mask = level["walls"][tile_y + 1][tile_x]
+                if (next_wall_mask & 1):
+                    return False
+                else:
+                    adjusted_x = 1/(math.tan(angle)) * viewer_to_b_y
+                    return can_see_point_from_point( level,
+                                                     viewer_x + adjusted_x,
+                                                     tile_y + 1.001,
+                                                     target_x, target_y )
+
+        elif (angle < br_angle and angle >= tr_angle):
+            # looking to the right
+            if (this_wall_mask & 2):
+                return False
+            else:
+                next_wall_mask = level["walls"][tile_y][tile_x + 1]
+                if (next_wall_mask & 8):
+                    return False
+                else:
+                    adjusted_y = math.tan(angle) * viewer_to_r_x
+                    return can_see_point_from_point( level,
+                                                     tile_x + 1.001,
+                                                     viewer_y + adjusted_y,
+                                                     target_x, target_y )
+
+        elif (angle < tr_angle or angle >= tl_angle):
+            # looking up
+            if (this_wall_mask & 1):
+                return False
+            else:
+                next_wall_mask = level["walls"][tile_y - 1][tile_x]
+                if (next_wall_mask & 4):
+                    return False
+                else:
+                    adjusted_x = (1/math.tan(angle)) * viewer_to_t_y
+                    return can_see_point_from_point( level,
+                                                     viewer_x + adjusted_x,
+                                                     tile_y - 0.0001,
+                                                     target_x, target_y )
+
+        else:
+            # ?
+            print "huh, really?"
+            return False
 
 def process_rules( level_data, elapsed ):
     pressed = pygame.key.get_pressed()
@@ -242,29 +342,31 @@ def process_rules( level_data, elapsed ):
     for enemy in level_data["enemies"]:
         enemy_x = enemy[0]
         enemy_y = enemy[1]
-        enemy_pressed = {
-            pygame.K_w: 0,
-            pygame.K_a: 0,
-            pygame.K_s: 0,
-            pygame.K_d: 0
-        }
+        if can_see_point_from_point(level_data,
+                                    enemy_x, enemy_y,
+                                    player_x, player_y):
+            enemy_pressed = {
+                pygame.K_w: 0,
+                pygame.K_a: 0,
+                pygame.K_s: 0,
+                pygame.K_d: 0
+            }
 
-        if (player_x < enemy_x):
-            enemy_pressed[pygame.K_a] = 1
-        elif (player_x > enemy_x):
-            enemy_pressed[pygame.K_d] = 1
+            if (player_x < enemy_x):
+                enemy_pressed[pygame.K_a] = 1
+            elif (player_x > enemy_x):
+                enemy_pressed[pygame.K_d] = 1
 
-        if (player_y < enemy_y):
-            enemy_pressed[pygame.K_w] = 1
-        elif (player_y > enemy_y):
-            enemy_pressed[pygame.K_s] = 1
+            if (player_y < enemy_y):
+                enemy_pressed[pygame.K_w] = 1
+            elif (player_y > enemy_y):
+                enemy_pressed[pygame.K_s] = 1
         
-        character_move(level_data,
-                       enemy,
-                       enemy_pressed,
-                       elapsed,
-                       enemy_velocity(level_data, enemy))
-        
+            character_move(level_data,
+                           enemy,
+                           enemy_pressed,
+                           elapsed,
+                           enemy_velocity(level_data, enemy))
 
 def main( screen ):
     with open("levels/level1.json") as level_file:
