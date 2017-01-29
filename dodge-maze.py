@@ -121,10 +121,20 @@ def character_move( level_data, character, pressed, elapsed, velocity ):
     if (horizontal or vertical):
         angle = math.atan2(vertical, horizontal )
         
-        current_x = character[0]
-        distance_x = math.cos(angle)
-        current_y = character[1]
         distance_y = math.sin(angle)
+        distance_x = math.cos(angle)
+        current_x = character[0]
+        current_y = character[1]
+
+        cur_left_x = current_x - character_box_size/2
+        cur_left_rel_x = cur_left_x - int(cur_left_x)
+        cur_top_y = current_y - character_box_size/2
+        cur_top_rel_y = cur_top_y - int(cur_top_y)
+        cur_right_x = current_x + character_box_size/2
+        cur_right_rel_x = cur_right_x - int(cur_right_x)
+        cur_bottom_y = current_y + character_box_size/2
+        cur_bottom_rel_y = cur_bottom_y - int(cur_bottom_y)
+
         new_x = current_x + distance_x * distance
         new_y = current_y + distance_y * distance
         new_left_x = new_x - character_box_size/2
@@ -142,39 +152,62 @@ def character_move( level_data, character, pressed, elapsed, velocity ):
 
         print new_left_rel_x, new_top_rel_y, new_right_rel_x, new_bottom_rel_y
         
-        if (new_left_rel_x <= wall_thickness):
-            if (walls_in_tl_tile & 8 or walls_in_bl_tile & 8):
-                new_x = current_x
+        if ((new_left_rel_x <= wall_thickness) and
+            (walls_in_tl_tile & 8 or walls_in_bl_tile & 8)):
+            new_x = current_x
+            if ((cur_left_rel_x <= wall_thickness) and
+                (walls_in_tl_tile & 8 or walls_in_bl_tile & 8)):
                 new_y = current_y
-        if (new_left_rel_x >= 1 - wall_thickness):
-            if (walls_in_tl_tile & 2 or walls_in_bl_tile & 2):
-                new_x = current_x
+                
+        if ((new_left_rel_x >= 1 - wall_thickness) and
+            (walls_in_tl_tile & 2 or walls_in_bl_tile & 2)):
+            new_x = current_x
+            if ((cur_left_rel_x >= wall_thickness) and
+                (walls_in_tl_tile & 2 or walls_in_bl_tile & 2)):
                 new_y = current_y
-        if (new_right_rel_x >= 1 - wall_thickness):
-            if (walls_in_tr_tile & 2 or walls_in_br_tile & 2):
-                new_x = current_x
+
+        if ((new_right_rel_x >= 1 - wall_thickness) and
+            (walls_in_tr_tile & 2 or walls_in_br_tile & 2)):
+            new_x = current_x
+            if ((cur_right_rel_x >= 1 - wall_thickness) and
+                (walls_in_tr_tile & 2 or walls_in_br_tile & 2)):
+                new_y  = current_y
+            
+        if (((new_right_rel_x <= wall_thickness) and
+             (walls_in_tr_tile & 8 or walls_in_br_tile & 8))):
+            new_x = current_x
+            if (((cur_right_rel_x <= wall_thickness) and
+                 (walls_in_tr_tile & 8 or walls_in_br_tile & 8))):
                 new_y = current_y
-        if (new_right_rel_x <= wall_thickness):
-            if (walls_in_tr_tile & 8 or walls_in_br_tile & 8):
+
+        if ((new_bottom_rel_y >= 1 - wall_thickness) and
+            (walls_in_br_tile & 4 or walls_in_bl_tile & 4)):
+            new_y = current_y
+            if ((cur_bottom_rel_y >= 1 - wall_thickness) and
+                (walls_in_br_tile & 4 or walls_in_bl_tile & 4)):
                 new_x = current_x
-                new_y = current_y
-        if (new_bottom_rel_y >= 1 - wall_thickness):
-            if (walls_in_br_tile & 4 or walls_in_bl_tile & 4):
+
+        if ((new_bottom_rel_y <= wall_thickness) and
+            (walls_in_br_tile & 1 or walls_in_bl_tile & 1)):
+            new_y = current_y
+            if ((cur_bottom_rel_y <= wall_thickness) and
+                (walls_in_br_tile & 1 or walls_in_bl_tile & 1)):
                 new_x = current_x
-                new_y = current_y
-        if (new_bottom_rel_y <= wall_thickness):
-            if (walls_in_br_tile & 1 or walls_in_bl_tile & 1):
+
+        if ((new_top_rel_y <= wall_thickness) and
+            (walls_in_tl_tile & 1 or walls_in_tr_tile & 1)):
+            new_y = current_y
+            if ((cur_top_rel_y <= wall_thickness) and
+                (walls_in_tl_tile & 1 or walls_in_tr_tile & 1)):
                 new_x = current_x
-                new_y = current_y
-        if (new_top_rel_y <= wall_thickness):
-            if (walls_in_tl_tile & 1 or walls_in_tr_tile & 1):
-                new_x = current_x
-                new_y = current_y
-        if (new_top_rel_y >= 1 - wall_thickness):
-            if (walls_in_tl_tile & 4 or walls_in_tr_tile & 4):
-                new_x = current_x
-                new_y = current_y
-        
+            
+        if ((new_top_rel_y >= 1 - wall_thickness) and
+            (walls_in_tl_tile & 4 or walls_in_tr_tile & 4)):
+            new_y = current_y
+            if ((cur_top_rel_y >= 1 - wall_thickness) and
+                (walls_in_tl_tile & 4 or walls_in_tr_tile & 4)):
+                new_x = cuurent_x
+
         character[0] = new_x
         character[1] = new_y
 
@@ -193,7 +226,7 @@ def enemy_velocity( level_data, character ):
     if floor_type == "B":
         return 2.5
     elif floor_type == "A":
-        return 1.5
+        return 0.3
     else:
         return 0
 
@@ -204,6 +237,34 @@ def process_rules( level_data, elapsed ):
                    pressed,
                    elapsed,
                    player_velocity(level_data))
+    player_x = level_data["player"][0]
+    player_y = level_data["player"][1]
+    for enemy in level_data["enemies"]:
+        enemy_x = enemy[0]
+        enemy_y = enemy[1]
+        enemy_pressed = {
+            pygame.K_w: 0,
+            pygame.K_a: 0,
+            pygame.K_s: 0,
+            pygame.K_d: 0
+        }
+
+        if (player_x < enemy_x):
+            enemy_pressed[pygame.K_a] = 1
+        elif (player_x > enemy_x):
+            enemy_pressed[pygame.K_d] = 1
+
+        if (player_y < enemy_y):
+            enemy_pressed[pygame.K_w] = 1
+        elif (player_y > enemy_y):
+            enemy_pressed[pygame.K_s] = 1
+        
+        character_move(level_data,
+                       enemy,
+                       enemy_pressed,
+                       elapsed,
+                       enemy_velocity(level_data, enemy))
+        
 
 def main( screen ):
     with open("levels/level1.json") as level_file:
