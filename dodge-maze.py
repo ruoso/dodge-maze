@@ -275,10 +275,13 @@ def can_see_point_from_point(level, viewer_x, viewer_y, target_x, target_y):
                     return False
                 else:
                     adjusted_y = math.tan(angle) * viewer_to_l_x
-                    return can_see_point_from_point( level,
-                                                     tile_x - 0.001,
-                                                     viewer_y + adjusted_y,
-                                                     target_x, target_y )
+                    if can_see_point_from_point( level,
+                                                 tile_x - 0.001,
+                                                 viewer_y + adjusted_y,
+                                                 target_x, target_y ):
+                        return "left"
+                    else:
+                        return False
 
         elif (angle < bl_angle and angle >= br_angle):
             # looking down
@@ -290,10 +293,13 @@ def can_see_point_from_point(level, viewer_x, viewer_y, target_x, target_y):
                     return False
                 else:
                     adjusted_x = 1/(math.tan(angle)) * viewer_to_b_y
-                    return can_see_point_from_point( level,
-                                                     viewer_x + adjusted_x,
-                                                     tile_y + 1.001,
-                                                     target_x, target_y )
+                    if can_see_point_from_point( level,
+                                                 viewer_x + adjusted_x,
+                                                 tile_y + 1.001,
+                                                 target_x, target_y ):
+                        return "down"
+                    else:
+                        return False
 
         elif (angle < br_angle and angle >= tr_angle):
             # looking to the right
@@ -305,10 +311,13 @@ def can_see_point_from_point(level, viewer_x, viewer_y, target_x, target_y):
                     return False
                 else:
                     adjusted_y = math.tan(angle) * viewer_to_r_x
-                    return can_see_point_from_point( level,
-                                                     tile_x + 1.001,
-                                                     viewer_y + adjusted_y,
-                                                     target_x, target_y )
+                    if can_see_point_from_point( level,
+                                                 tile_x + 1.001,
+                                                 viewer_y + adjusted_y,
+                                                 target_x, target_y ):
+                        return "right"
+                    else:
+                        return False
 
         elif (angle < tr_angle or angle >= tl_angle):
             # looking up
@@ -320,15 +329,79 @@ def can_see_point_from_point(level, viewer_x, viewer_y, target_x, target_y):
                     return False
                 else:
                     adjusted_x = (1/math.tan(angle)) * viewer_to_t_y
-                    return can_see_point_from_point( level,
-                                                     viewer_x + adjusted_x,
-                                                     tile_y - 0.0001,
-                                                     target_x, target_y )
+                    if can_see_point_from_point( level,
+                                                 viewer_x + adjusted_x,
+                                                 tile_y - 0.0001,
+                                                 target_x, target_y ):
+                        return "up"
+                    else:
+                        return False
 
         else:
             # ?
             print "huh, really?"
             return False
+
+def enemy_behavior( elapsed, level_data, player_x, player_y, enemy ):
+    enemy_x = enemy[0]
+    enemy_y = enemy[1]
+    direction = can_see_point_from_point(level_data,
+                                         enemy_x, enemy_y,
+                                         player_x, player_y)
+    if direction:
+        enemy_pressed = {
+            pygame.K_w: 0,
+            pygame.K_a: 0,
+            pygame.K_s: 0,
+            pygame.K_d: 0
+        }
+
+        if (direction == True):
+            if (player_x < enemy_x):
+                enemy_pressed[pygame.K_a] = 1
+            elif (player_x > enemy_x):
+                enemy_pressed[pygame.K_d] = 1
+                    
+            if (player_y < enemy_y):
+                enemy_pressed[pygame.K_w] = 1
+            elif (player_y > enemy_y):
+                enemy_pressed[pygame.K_s] = 1
+        else:
+            rel_x = enemy_x - int(enemy_x)
+            rel_y = enemy_y - int(enemy_y)
+            if (direction == "up"):
+                enemy_pressed[pygame.K_w] = 1
+                if (rel_x < 0.6):
+                    enemy_pressed[pygame.K_d] = 1
+                elif (rel_x > 0.4):
+                    enemy_pressed[pygame.K_a] = 1
+                        
+            elif (direction == "down"):
+                enemy_pressed[pygame.K_s] = 1
+                if (rel_x < 0.4):
+                    enemy_pressed[pygame.K_d] = 1
+                elif (rel_x > 0.6):
+                    enemy_pressed[pygame.K_a] = 1
+
+            elif (direction == "left"):
+                enemy_pressed[pygame.K_a] = 1
+                if (rel_y < 0.4):
+                    enemy_pressed[pygame.K_s] = 1
+                elif (rel_y > 0.6):
+                    enemy_pressed[pygame.K_w] = 1
+
+            elif (direction == "right"):
+                enemy_pressed[pygame.K_d] = 1
+                if (rel_y < 0.4):
+                    enemy_pressed[pygame.K_s] = 1
+                elif (rel_y > 0.6):
+                    enemy_pressed[pygame.K_w] = 1
+
+        character_move(level_data,
+                       enemy,
+                       enemy_pressed,
+                       elapsed,
+                       enemy_velocity(level_data, enemy))
 
 def process_rules( level_data, elapsed ):
     pressed = pygame.key.get_pressed()
@@ -340,33 +413,7 @@ def process_rules( level_data, elapsed ):
     player_x = level_data["player"][0]
     player_y = level_data["player"][1]
     for enemy in level_data["enemies"]:
-        enemy_x = enemy[0]
-        enemy_y = enemy[1]
-        if can_see_point_from_point(level_data,
-                                    enemy_x, enemy_y,
-                                    player_x, player_y):
-            enemy_pressed = {
-                pygame.K_w: 0,
-                pygame.K_a: 0,
-                pygame.K_s: 0,
-                pygame.K_d: 0
-            }
-
-            if (player_x < enemy_x):
-                enemy_pressed[pygame.K_a] = 1
-            elif (player_x > enemy_x):
-                enemy_pressed[pygame.K_d] = 1
-
-            if (player_y < enemy_y):
-                enemy_pressed[pygame.K_w] = 1
-            elif (player_y > enemy_y):
-                enemy_pressed[pygame.K_s] = 1
-        
-            character_move(level_data,
-                           enemy,
-                           enemy_pressed,
-                           elapsed,
-                           enemy_velocity(level_data, enemy))
+        enemy_behavior(elapsed, level_data, player_x, player_y, enemy)
 
 def main( screen ):
     with open("levels/level1.json") as level_file:
