@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import json
 import pygame
 import thread
@@ -345,6 +346,11 @@ def can_see_point_from_point(level, viewer_x, viewer_y, target_x, target_y):
 def enemy_behavior( elapsed, level_data, player_x, player_y, enemy ):
     enemy_x = enemy[0]
     enemy_y = enemy[1]
+
+    if ((abs(enemy_x - player_x) < character_box_size/2) and
+        (abs(enemy_y - player_y) < character_box_size/2)):
+        raise Exception("Gotcha!")
+    
     direction = can_see_point_from_point(level_data,
                                          enemy_x, enemy_y,
                                          player_x, player_y)
@@ -412,6 +418,8 @@ def process_rules( level_data, elapsed ):
                    player_velocity(level_data))
     player_x = level_data["player"][0]
     player_y = level_data["player"][1]
+    if level_data["floor"][int(player_y)][int(player_x)] == "G":
+        raise Exception("You WIN!")
     for enemy in level_data["enemies"]:
         enemy_behavior(elapsed, level_data, player_x, player_y, enemy)
 
@@ -431,7 +439,12 @@ def main( screen ):
         tock = time.time()
         elapsed = tock - tick
         draw_everything( level_data, screen )
-        process_rules( level_data, elapsed )
+        try:
+            process_rules( level_data, elapsed )
+        except:
+            with open("levels/level1.json") as level_file:
+                level_data = json.load(level_file)
+            
         tick = tock
         if (elapsed < frame_duration):
             sleep(frame_duration - elapsed)
