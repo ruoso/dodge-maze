@@ -4,6 +4,7 @@ import pygame
 import thread
 import time
 import math
+import copy
 
 screen_x_size = 820;
 screen_y_size = 820;
@@ -418,18 +419,19 @@ def process_rules( level_data, elapsed ):
                    player_velocity(level_data))
     player_x = level_data["player"][0]
     player_y = level_data["player"][1]
-    if level_data["floor"][int(player_y)][int(player_x)] == "G":
-        raise Exception("You WIN!")
     for enemy in level_data["enemies"]:
         enemy_behavior(elapsed, level_data, player_x, player_y, enemy)
 
 def main( screen ):
-    with open("levels/level1.json") as level_file:
-        level_data = json.load(level_file)
+    with open("levels.json") as levels_file:
+        levels_data = json.load(levels_file)
 
     framerate = 30
     frame_duration = 1/30
 
+    current_level = levels_data.pop(0)
+    level_data = copy.deepcopy(current_level)
+    
     done = False
     tick = time.time()
     while not done:
@@ -442,9 +444,18 @@ def main( screen ):
         try:
             process_rules( level_data, elapsed )
         except:
-            with open("levels/level1.json") as level_file:
-                level_data = json.load(level_file)
-            
+            level_data = copy.deepcopy(current_level)
+
+        player_x = level_data["player"][0]
+        player_y = level_data["player"][1]
+        if level_data["floor"][int(player_y)][int(player_x)] == "G":
+            if len(levels_data) == 0:
+                with open("levels.json") as levels_file:
+                    levels_data = json.load(levels_file)
+            current_level = levels_data.pop(0)
+            level_data = copy.deepcopy(current_level)
+                
+                
         tick = tock
         if (elapsed < frame_duration):
             sleep(frame_duration - elapsed)
