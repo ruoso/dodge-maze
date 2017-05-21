@@ -110,14 +110,14 @@ def character_move( level_data, character, pressed, elapsed, velocity ):
     vertical = 0
     horizontal = 0
 
-    if (pressed[pygame.K_w] != 0):
+    if ((pressed[pygame.K_w] != 0) or (pressed[pygame.K_UP] != 0)):
         vertical -= 1
-    if (pressed[pygame.K_s] != 0):
+    if ((pressed[pygame.K_s] != 0) or (pressed[pygame.K_DOWN]!=0)):
         vertical += 1
         
-    if (pressed[pygame.K_a] != 0):
+    if ((pressed[pygame.K_a] != 0) or (pressed[pygame.K_LEFT] != 0)):
         horizontal -= 1
-    if (pressed[pygame.K_d] != 0):
+    if ((pressed[pygame.K_d] != 0) or (pressed[pygame.K_RIGHT] != 0)):
         horizontal += 1
 
     if (horizontal or vertical):
@@ -360,7 +360,11 @@ def enemy_behavior( elapsed, level_data, player_x, player_y, enemy ):
             pygame.K_w: 0,
             pygame.K_a: 0,
             pygame.K_s: 0,
-            pygame.K_d: 0
+            pygame.K_d: 0,
+	    pygame.K_UP: 0,
+	    pygame.K_DOWN: 0,
+	    pygame.K_LEFT: 0,
+	    pygame.K_RIGHT: 0,
         }
 
         if (direction == True):
